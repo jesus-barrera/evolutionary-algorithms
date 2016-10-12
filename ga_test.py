@@ -1,5 +1,5 @@
-from genetics import GeneticAlgorithm
-from test_functions import rastrigin, ackley, sphere
+from genetic_algorithms import BasicBinaryGA
+from test_functions     import rastrigin, ackley, sphere
 
 if __name__ == '__main__':
     max_generations = 100
@@ -7,7 +7,7 @@ if __name__ == '__main__':
 
     domain = (-100, 100)
 
-    GA = GeneticAlgorithm(rastrigin, domain)
+    GA = BasicBinaryGA(rastrigin, domain)
 
     results = GA.optimize(population_size, max_generations)
 

@@ -6,7 +6,7 @@ MAXIMIZE = 1
 '''
 A basic binary genetic algorithm.
 '''
-class GeneticAlgorithm:
+class BasicBinaryGA:
     mutation_probability = 0.01
     genelen = 15
     fitness_offset = 10000
