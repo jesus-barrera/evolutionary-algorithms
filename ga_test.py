@@ -2,14 +2,13 @@ from genetic_algorithms import BasicBinaryGA
 from test_functions     import rastrigin, ackley, sphere
 
 if __name__ == '__main__':
-    max_generations = 100
-    population_size = 50
+    GA = BasicBinaryGA()
 
-    domain = (-100, 100)
-
-    GA = BasicBinaryGA(rastrigin, domain)
-
-    results = GA.optimize(population_size, max_generations)
+    results = GA.solve(
+        function=rastrigin,
+        domain=(-100, 100),
+        population_size=50,
+        max_generations=200)
 
     file = open('results.txt', 'w')
 

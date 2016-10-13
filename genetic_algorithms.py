@@ -7,19 +7,20 @@ MAXIMIZE = 1
 A basic binary genetic algorithm.
 '''
 class BasicBinaryGA:
-    mutation_probability = 0.01
-    genelen = 15
-    fitness_offset = 10000
-    problem_type = MINIMIZE
+    def __init__(self):
+        self.mutation_probability = 0.01
+        self.genelen = 15
+        self.fitness_offset = 10000
 
-    def __init__(self, function, domain):
         self.population = []
         self.fitness_list = []
         self.fitness_sum = 0
 
-        # problem bounaries
-        self.set_bounds(domain)
-        self.function = function
+        # the best elites_n inidividuals of each generation are preserved, so
+        # good solutions are not lost.
+        self.elites_n = 2
+
+        self.problem_type = MINIMIZE
 
     def set_bounds(self, domain):
         self.domain = domain
@@ -29,22 +30,44 @@ class BasicBinaryGA:
         # resolution indicates the difference between each of these values.
         self.resolution = float(domain[1] - domain[0]) / (2**self.genelen - 1)
 
-    def optimize(self, population_size, max_generations):
-        # set random population
-        self.init_population(population_size)
+    def solve(
+            self,
+            function,
+            domain,
+            population_size=100,
+            max_generations=50):
+
+        self.function = function
+        self.set_bounds(domain)
 
         results = []
+
+        # set random population
+        self.init_population(population_size)
 
         for generation in range(max_generations):
             self.calculate_fitness()
 
-            # evaluate current generation
-            fittest, value = self.evaluate_fittest()
-            results.append((fittest, value)) # save result
+            # sort fitness in descending order
+            sorted_fitness = sorted(
+                enumerate(self.fitness_list),
+                key=lambda i: i[1],
+                reverse=True)
 
-            print '{}:f{} = {}'.format(generation, fittest, value) # print best fit
+            # save best fit
+            i, fitness = sorted_fitness[0]
 
-            children = []
+            fittest = self.get_fenotypes(self.population[i])
+            value = self.function(*fittest)
+            results.append((fittest, value))
+
+            # print generation best fit
+            print '{}:f{} = {}'.format(generation, fittest, value)
+
+            # preserve the best elites_n individuals
+            elites = sorted_fitness[:self.elites_n]
+            children = [self.population[i] for i, fitness in elites]
+
             while len(children) < len(self.population):
                 # selection
                 parents = self.select_mates()
@@ -59,14 +82,7 @@ class BasicBinaryGA:
                 # mutation
                 decendents = map(self.mutate, decendents)
 
-                decendents = map(self.decode, decendents)
-
-                # convenient preservation of the parents
-                if (self.fitness(decendents[0]) >= self.fitness(parents[0])):
-                    children.append(decendents[0])
-
-                if (self.fitness(decendents[1]) >= self.fitness(parents[1])):
-                    children.append(decendents[1])
+                children.extend(map(self.decode, decendents))
 
             self.population = children
 
@@ -84,19 +100,10 @@ class BasicBinaryGA:
 
             self.population.append((x, y))
 
-    # Evaluates the best individual of the current generation.
-    def evaluate_fittest(self):
-        fittest, fitness = self.get_fittest()
-
-        fittest = self.get_fenotypes(fittest)
-        value = self.function(*fittest)
-
-        return fittest, value
-
     # Calculates the fitness for each individual in population.
     def calculate_fitness(self):
         self.fitness_list = map(self.fitness, self.population)
-        self.fitness_sum = sum(self.fitness_list) # save the sum for later use
+        self.fitness_sum = sum(self.fitness_list) # save sum for later use
 
     # Returns the individual's fitness. It is calculated by simply evaluating the
     # function with the individual's fenotypes. If the problem is a minimization
@@ -120,13 +127,6 @@ class BasicBinaryGA:
         x, y = individual
 
         return self.fenotype(x), self.fenotype(y)
-
-    # Finds the fittest individual in population; returns a tuple containing the
-    # fittest individual and it's fitness.
-    def get_fittest(self):
-        index, fitness = max(enumerate(self.fitness_list), key=lambda item: item[1])
-
-        return self.population[index], fitness
 
     # Probabilisticaly selects two individuals.
     def select_mates(self):
