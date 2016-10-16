@@ -30,12 +30,7 @@ class BasicBinaryGA:
         # resolution indicates the difference between each of these values.
         self.resolution = float(domain[1] - domain[0]) / (2**self.genelen - 1)
 
-    def solve(
-            self,
-            function,
-            domain,
-            population_size=100,
-            max_generations=50):
+    def solve(self, function, domain, population_size, max_generations):
 
         self.function = function
         self.set_bounds(domain)
