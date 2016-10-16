@@ -1,6 +1,5 @@
 import math
 import random
-import pdb
 
 from evo import EvolutionaryAlgorithm
 from tools import RandomSelector, Interval
@@ -58,7 +57,7 @@ class ContinuousACO(EvolutionaryAlgorithm):
             for ant in self.population:
                 for dimension in self.dimensions:
                     # randomly select an interval on this dimension
-                    interval = selectors[dimension].pick()
+                    interval = selectors[dimension].choose()
 
                     # set the solution within the selected interval
                     ant[dimension] = random.uniform(interval.min, interval.max)
