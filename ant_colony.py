@@ -35,8 +35,8 @@ class ContinuousACO(EvolutionaryAlgorithm):
         self.discretize()
         self.init_pheromones()
         self.init_population()
-
-        elite_ants = []
+        self.elite_ants = []
+        self.best_ant = None
 
         for generation in range(max_generations):
             selectors = []
@@ -63,7 +63,7 @@ class ContinuousACO(EvolutionaryAlgorithm):
                     ant[dimension] = random.uniform(interval.min, interval.max)
 
             # place elite ants back to the colony
-            self.population.extend(elite_ants)
+            self.population.extend(self.elite_ants)
 
             deposited_pheromones = map(self.deposited_pheromones, self.population)
 
@@ -80,16 +80,16 @@ class ContinuousACO(EvolutionaryAlgorithm):
                         if  interval.min <= ant[dimension] < interval.max:
                             pheromones[i] += deposited_pheromones[k]
 
-            self.sort_population()
 
-            best_ant = self.population[0]
+            self.evaluate_generation()
 
-            # remove elite ants from colony
-            elite_ants = self.population[:self.num_elites]
-            self.population = self.population[self.num_elites:]
+            self.set_results(
+                    generation,
+                    self.population[:],
+                    self.best_ant,
+                    self.evaluate(self.best_ant))
 
-            # print best solution
-            print '{}: f{} = {}'.format(generation, best_ant, self.evaluate(best_ant))
+        return self.best_ant
 
     def discretize(self):
         """Divides the problem's domain into discretized intervals."""
@@ -114,3 +114,12 @@ class ContinuousACO(EvolutionaryAlgorithm):
         """Calculates the ammount of pheromones deposited by an ant."""
 
         return self.deposition_constant / self.cost(ant)
+
+    def evaluate_generation(self):
+        self.sort_population()
+
+        self.best_ant = self.population[0]
+
+        # get elite ants and remove them from population
+        self.elite_ants = self.population[:self.num_elites]
+        self.population = self.population[self.num_elites:]

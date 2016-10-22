@@ -39,6 +39,8 @@ class EvolutionaryAlgorithm:
         problem_type -- tells if MINIMIZE or MAXIMIZE the objective function (default MINIMIZE)
         max_generations -- number of generations to evolve the solution (default 100)
         """
+        file('results.txt', 'w').close()
+        file('population.txt', 'w').close()
 
         # set problem specifications
         self.function = function
@@ -96,3 +98,25 @@ class EvolutionaryAlgorithm:
         is_maximize = self.problem_type == MAXIMIZE
 
         self.population.sort(key=self.evaluate, reverse=is_maximize)
+
+    def set_results(self, generation, population, best, value):
+        self.save_result(generation, value)
+        self.save_population(generation, population)
+
+        print '{}: f{} = {}'.format(generation, best, value)
+
+    def save_result(self, generation, best_value):
+        file = open('results.txt', 'a')
+
+        file.write('{}, {}\n'.format(generation, best_value))
+        file.close()
+
+    def save_population(self, generation, population):
+        file = open('population.txt', 'a')
+
+        file.write('generation #{}:\n'.format(generation))
+
+        for individual in population:
+            file.write(','.join([str(x) for x in individual]) + '\n')
+
+        file.close()
