@@ -1,12 +1,14 @@
 import abc
 import random
-
+from collections import namedtuple
 from tools import Interval
 
 MINIMIZE = 0
 MAXIMIZE = 1
 
 OFFSET = 1000
+
+Generation = namedtuple('Generation', ['population', 'best'])
 
 class EvolutionaryAlgorithm:
     """Evolutionary Algorithm for solving optimization problems."""
