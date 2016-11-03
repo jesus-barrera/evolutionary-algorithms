@@ -1,5 +1,5 @@
-from genetics import BasicBinaryGA
-from test_functions import rastrigin, ackley, sphere
+from evo.genetics import BasicBinaryGA
+from evo.functions import rastrigin, ackley, sphere
 
 if __name__ == '__main__':
     GA = BasicBinaryGA()

@@ -1,5 +1,5 @@
-from ant_colony import ContinuousACO
-from test_functions import rastrigin, ackley, sphere
+from evo.ants import ContinuousACO
+from evo.functions import rastrigin, ackley, sphere
 
 if __name__ == '__main__':
     aco = ContinuousACO()
