@@ -1,5 +1,6 @@
 import abc
 import random
+import numpy as np
 from collections import namedtuple
 from tools import Interval
 
@@ -21,104 +22,119 @@ class EvolutionaryAlgorithm:
             mutation_probability,
             num_elites):
 
-        self.population_size = population_size
-        self.mutation_probability = mutation_probability
-        self.num_elites = num_elites
+        self._population_size = population_size
+        self._mutation_probability = mutation_probability
+        self._num_elites = num_elites
 
-        self.population = []
+        self._population = []
 
-    @abc.abstractmethod
-    def evolve(self, max_generations):
-        """Implements an evolutionary algorithm."""
-        return
-
-    def solve(self, function, domain, problem_type=MINIMIZE, max_generations=100):
-        """Solves an optimization problem using an evolutionary algorithm.
+    def optimize(
+            self,
+            function,
+            lower_bounds=[],
+            upper_bounds=[],
+            problem_type=MINIMIZE,
+            max_generations=100):
+        """Optimize a function using evolutionary techniques.
 
         Arguments:
         function -- objective function
-        domain -- problem domain
+        lower_bounds -- lower bounds for each variable
+        upper_bounds -- upper bounds for each variable
         problem_type -- tells if MINIMIZE or MAXIMIZE the objective function (default MINIMIZE)
         max_generations -- number of generations to evolve the solution (default 100)
         """
-        file('results.txt', 'w').close()
-        file('population.txt', 'w').close()
 
-        # set problem specifications
-        self.function = function
-        self.domain = Interval(*domain)
-        self.problem_type = problem_type
+        self._set_problem(function, lower_bounds, upper_bounds, problem_type)
+        self._init_algorithm()
 
-        self.set_objective_functions()
+        self.generations = []
 
-        # the number of arguments the function takes tells the dimensions of the
-        # problem
-        self.dimensions = range(function.func_code.co_argcount)
+        count = 0
 
-        # run the algorithm to find the solution
-        return self.evolve(max_generations)
+        while True:
+            self._sort_population()
 
-    def random_inidividual(self):
-        """Forms a random candidate solution.
+            self.generations.append(self._get_generation())
 
-        A candidate solution is a list of elements where each element represents
-        a solution parameter.
-        """
+            if count < max_generations:
+                self._evolve()
+                count += 1
+            else:
+                break
 
-        return [random.uniform(self.domain.min, self.domain.max)
-                for dimension in self.dimensions]
+        return self._best()
 
-    def init_population(self):
-        """Initialize the population with random individuals."""
+    def _init_algorithm(self):
+        self._init_population()
 
-        self.population = [self.random_inidividual()
-                           for i in range(self.population_size)]
+    def _init_population(self):
+        self._population = [self._rand_individual()
+                            for i in range(self._population_size)]
 
-    def set_objective_functions(self):
-        # two possible representations of the problem
-        pos_func = lambda i: self.evaluate(i) + OFFSET
-        neg_func = lambda i: -self.evaluate(i) + OFFSET * OFFSET
+    @abc.abstractmethod
+    def _evolve(self):
+        return
 
-        if self.problem_type is MINIMIZE:
-            # minimize f(x)
-            self.fitness = neg_func # fitness(x) = -f(x) + k
-            self.cost = pos_func    # cost(x) = f(x) + k
+    def _get_generation(self):
+        population = copy.copy(self.population)
+        best = population[0], self._function(*population[0])
 
+        return Generation(population, best)
+
+    def _rand_individual(self):
+        params = []
+
+        for i in range(self._dimensions):
+            rand = np.random.uniform(self._lower_bounds[i], self._upper_bounds[i])
+            params.append(rand)
+
+        return np.array(params)
+
+    def _sort_population(self):
+        is_maximize = self._problem_type == MAXIMIZE
+
+        self._population.sort(key=self._evaluate, reverse=is_maximize)
+
+    def _best(self):
+        return self._population[0]
+
+    def _evaluate(self, individual):
+        return self._function(*individual)
+
+    def _pick_elites(self):
+        elites = self._population[:self._num_elites]
+
+        self._population = self._population[self._num_elites:]
+
+        return elites
+
+    def _set_problem(self, function, lower_bounds, upper_bounds, problem_type):
+        self._function = function
+        self._problem_type = problem_type
+
+        # calculate dimensions
+        self._dimensions = function.func_code.co_argcount
+
+        # set boundaries
+        self._lower_bounds = self._new_bounds(lower_bounds, -1000)
+        self._upper_bounds = self._new_bounds(upper_bounds, 1000)
+
+        self._set_objective_functions()
+
+    def _new_bounds(self, bounds, value):
+        if bounds:
+            return np.array(bounds)
         else:
-            # maximize f(x)
-            self.fitness = pos_func # fitness(x) = f(x) + k
-            self.cost = neg_func    # cost(x) = -f(x) + k
+            return np.zeros(self._dimensions) + value
 
-    def evaluate(self, individual):
-        """Evaluates a candidate solution."""
+    def _set_objective_functions(self):
+        pos_func = lambda i: self._evaluate(i) + OFFSET
+        neg_func = lambda i: -self._evaluate(i) + OFFSET * OFFSET
 
-        return self.function(*individual)
-
-    def sort_population(self):
-        """Sorts the population by the best solution."""
-
-        is_maximize = self.problem_type == MAXIMIZE
-
-        self.population.sort(key=self.evaluate, reverse=is_maximize)
-
-    def set_results(self, generation, population, best, value):
-        self.save_result(generation, value)
-        self.save_population(generation, population)
-
-        print '{}: f{} = {}'.format(generation, best, value)
-
-    def save_result(self, generation, best_value):
-        file = open('results.txt', 'a')
-
-        file.write('{}, {}\n'.format(generation, best_value))
-        file.close()
-
-    def save_population(self, generation, population):
-        file = open('population.txt', 'a')
-
-        file.write('generation #{}:\n'.format(generation))
-
-        for individual in population:
-            file.write(','.join([str(x) for x in individual]) + '\n')
-
-        file.close()
+        if self._problem_type is MINIMIZE:
+            self._fitness = neg_func
+            self._cost = pos_func
+        else:
+            self._fitness = pos_func
+            self._cost = neg_func
