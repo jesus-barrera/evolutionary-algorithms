@@ -5,7 +5,8 @@ from evo.plot import EvoPlot
 if __name__ == '__main__':
     pso = ParticleSwarm()
 
-    results = pso.solve(function=ackley, domain=(-1000, 1000))
+    best = pso.optimize(function=rastrigin)
 
-    plot = EvoPlot(results)
+    plot = EvoPlot(pso.generations)
+
     plot.animate()

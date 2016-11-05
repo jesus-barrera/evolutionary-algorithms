@@ -5,9 +5,9 @@ import numpy as np
 from evo import EvolutionaryAlgorithm as EA, Generation
 
 class Particle:
-    def __init__(self, position, velocity):
+    def __init__(self, position):
         self.position = position
-        self.velocity = velocity
+        self.velocity = np.zeros(len(position))
 
         self.set_best_position(position)
 
@@ -15,81 +15,72 @@ class Particle:
         self.best_position = copy.copy(position)
 
 class ParticleSwarm(EA):
-    """Particle Swarm Optimization using gbest topology."""
+    """Optimize a function using the Particle Swarm Optimization approach.
+
+    Implements a gbest (global best) topology.
+    """
 
     def __init__(
             self,
             population_size=100,
             num_elites=2,
             max_cognition_rate=2.05,
-            max_social_rate=2.05):
+            max_social_rate=2.05,
+            max_velocity=20):
 
         EA.__init__(self, population_size, 0, num_elites)
 
-        self.max_cognition_rate = max_cognition_rate
-        self.max_social_rate = max_social_rate
+        self._max_cognition_rate = max_cognition_rate
+        self._max_social_rate = max_social_rate
+        self._max_velocity = max_velocity
 
-        self.generations = []
+    def _evolve(self):
+        best_neighbor = EA._best(self)
+        elites = self._pick_elites()
 
-    def evolve(self, max_generations):
-        self.init_population()
+        for particle in self._population:
+            cognition_rate = np.random.uniform(0, self._max_cognition_rate)
+            social_rate = np.random.uniform(0, self._max_social_rate)
 
-        max_velocity = (self.domain.max - self.domain.min) * 0.01
+            # update velocity
+            particle.velocity += (social_rate
+                                  * (best_neighbor.position - particle.position)
+                                  + cognition_rate
+                                  * (particle.best_position - particle.position))
 
-        for generation in range(max_generations):
-            self.sort_population()
+            # velocity limiting
+            magnitude = np.linalg.norm(particle.velocity)
 
-            self.save_generation()
+            if magnitude > self._max_velocity:
+                particle.velocity = (particle.velocity / magnitude
+                                     * self._max_velocity)
 
-            best_neighbor = self.population[0]
+            # update particle position
+            particle.position += particle.velocity
 
-            elites = self.population[:self.num_elites]
+            # update best position
+            if self._fitness(particle) > self._fitness(Particle(particle.best_position)):
+                particle.set_best_position(particle.position)
 
-            self.population = self.population[self.num_elites:]
+        self._population.extend(elites)
 
-            for particle in self.population:
-                cognition_rate = self.learning_rate(self.max_cognition_rate)
-                social_rate = self.learning_rate(self.max_social_rate)
+    def _rand_individual(self):
+        position = EA._rand_individual(self)
 
-                # update velocity
-                particle.velocity += (social_rate
-                                      * (best_neighbor.position - particle.position)
-                                      + cognition_rate
-                                      * (particle.best_position - particle.position))
+        return Particle(position)
 
-                # velocity limiting
-                magnitude = np.linalg.norm(particle.velocity)
+    def _evaluate(self, particle):
+        return self._function(*particle.position)
 
-                if magnitude > max_velocity:
-                    particle.velocity = (particle.velocity / magnitude) * max_velocity
+    def _best(self):
+        best = EA._best(self)
 
-                # update particle position
-                particle.position += particle.velocity
+        return copy.copy(best.position)
 
-                # update best position
-                if self.fitness(particle) > self.fitness(Particle(particle.best_position, 0)):
-                    particle.set_best_position(particle.position)
-
-            self.population.extend(elites)
-
-        return self.generations
-
-    def random_inidividual(self):
-        position = np.array(EA.random_inidividual(self))
-        velocity = np.zeros(len(self.dimensions))
-
-        return Particle(position, velocity)
-
-    def evaluate(self, particle):
-        return EA.evaluate(self, particle.position)
-
-    def learning_rate(self, max_value):
-        return np.array([random.uniform(0, max_value) for d in self.dimensions])
-
-    def save_generation(self):
+    def _get_generation(self):
         positions = [copy.copy(particle.position)
-                     for particle in self.population]
+                     for particle in self._population]
 
-        best = self.evaluate(self.population[0])
+        best = positions[0], self._function(*positions[0])
 
-        self.generations.append(Generation(positions, best))
+        return Generation(positions, best)
