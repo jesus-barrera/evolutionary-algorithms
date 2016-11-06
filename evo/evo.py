@@ -1,5 +1,6 @@
 import abc
 import random
+import copy
 import numpy as np
 from collections import namedtuple
 from tools import Interval
@@ -77,19 +78,20 @@ class EvolutionaryAlgorithm:
         return
 
     def _get_generation(self):
-        population = copy.copy(self.population)
+        population = copy.deepcopy(self._population)
         best = population[0], self._function(*population[0])
 
         return Generation(population, best)
 
     def _rand_individual(self):
-        params = []
+        params = np.zeros(self._dimensions)
 
         for i in range(self._dimensions):
-            rand = np.random.uniform(self._lower_bounds[i], self._upper_bounds[i])
-            params.append(rand)
+            params[i] = random.uniform(
+                            self._lower_bounds[i],
+                            self._upper_bounds[i])
 
-        return np.array(params)
+        return params
 
     def _sort_population(self):
         is_maximize = self._problem_type == MAXIMIZE
