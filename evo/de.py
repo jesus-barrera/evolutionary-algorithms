@@ -28,7 +28,7 @@ class DifferentialEvolution(EA):
 
             # crossover
             trial = np.zeros(self._dimensions)
-            rj = random.randint(0, self._dimensions - 1)
+            rj = random.randrange(self._dimensions)
 
             for j in range(self._dimensions):
                 if random.random() <= self.crossover_rate or j == rj:

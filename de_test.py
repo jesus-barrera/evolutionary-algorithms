@@ -5,7 +5,7 @@ from evo.plot import EvoPlot
 if __name__ == '__main__':
     de = DifferentialEvolution()
 
-    print de.optimize(function=rastrigin)
+    best = de.optimize(function=rastrigin)
 
     plot = EvoPlot(de.generations)
 

@@ -67,6 +67,9 @@ class EvoPlot():
         return self.population_line,
 
     def update(self, num):
+        best = self.generations[num].best
+        print 'Generacion {}: f{} = {}'.format(num, best[0], best[1])
+
         self.frame = num
         self.update_population(num)
 
