@@ -5,16 +5,12 @@ import numpy as np
 from collections import namedtuple
 from tools import Interval
 
-MINIMIZE = 0
-MAXIMIZE = 1
-
-OFFSET = 1000
-
 Generation = namedtuple('Generation', ['population', 'best'])
 
+# TODO: implement a _normalize abstract method and use it in evaluate, _get_generation
+# and _best, so subclases dont have to override these methods, but only implement
+# a the _normalize one.
 class EvolutionaryAlgorithm:
-    """Evolutionary Algorithm for solving optimization problems."""
-
     __metaclass__ = abc.ABCMeta
 
     def __init__(
@@ -23,6 +19,7 @@ class EvolutionaryAlgorithm:
             mutation_probability,
             num_elites):
 
+        # these are some tipical EA parameters; may not be used by all EAs.
         self._population_size = population_size
         self._mutation_probability = mutation_probability
         self._num_elites = num_elites
@@ -32,30 +29,36 @@ class EvolutionaryAlgorithm:
     def optimize(
             self,
             function,
+            domain=(-100, 100),
             lower_bounds=[],
             upper_bounds=[],
-            problem_type=MINIMIZE,
+            problem_type='min',
             max_generations=100):
         """Optimize a function using evolutionary techniques.
 
         Arguments:
-        function -- objective function
-        lower_bounds -- lower bounds for each variable
-        upper_bounds -- upper bounds for each variable
-        problem_type -- tells if MINIMIZE or MAXIMIZE the objective function (default MINIMIZE)
+        function -- function to optimize, also known as objective function
+        lower_bounds -- lower bounds for each solution parameter
+        upper_bounds -- upper bounds for each solution parameter
+        problem_type -- one of 'max' or 'min' strings. Tells if maximize or
+                        minimize the objective function (default 'min')
         max_generations -- number of generations to evolve the solution (default 100)
         """
+
+        # domain is used for backwards compatibility. Algoriths must use
+        # lower_bounds and upper_bounds instead
+        self._domain = Interval(*domain)
 
         self._set_problem(function, lower_bounds, upper_bounds, problem_type)
         self._init_algorithm()
 
+        # stores the results of each generation; this data is intented for analysis
         self.generations = []
 
         count = 0
 
         while True:
             self._sort_population()
-
             self.generations.append(self._get_generation())
 
             if count < max_generations:
@@ -79,9 +82,10 @@ class EvolutionaryAlgorithm:
 
     def _get_generation(self):
         population = copy.deepcopy(self._population)
-        best = population[0], self._function(*population[0])
 
-        return Generation(population, best)
+        best = population[0]
+
+        return Generation(population, (best, self._function(*best)))
 
     def _rand_individual(self):
         params = np.zeros(self._dimensions)
@@ -94,17 +98,21 @@ class EvolutionaryAlgorithm:
         return params
 
     def _sort_population(self):
-        is_maximize = self._problem_type == MAXIMIZE
+        is_maximize = self._problem_type == 'max'
 
         self._population.sort(key=self._evaluate, reverse=is_maximize)
 
     def _best(self):
+        # as the population is sorted before each generation, we expect the first
+        # individual to be the best
         return self._population[0]
 
     def _evaluate(self, individual):
         return self._function(*individual)
 
     def _pick_elites(self):
+        # asumes the population is sorted by best; get the first (so best) _num_elites
+        # individuals
         elites = self._population[:self._num_elites]
 
         self._population = self._population[self._num_elites:]
@@ -122,7 +130,7 @@ class EvolutionaryAlgorithm:
         self._lower_bounds = self._new_bounds(lower_bounds, -1000)
         self._upper_bounds = self._new_bounds(upper_bounds, 1000)
 
-        self._set_objective_functions()
+        self._set_objective_function()
 
     def _new_bounds(self, bounds, value):
         if bounds:
@@ -130,13 +138,27 @@ class EvolutionaryAlgorithm:
         else:
             return np.zeros(self._dimensions) + value
 
-    def _set_objective_functions(self):
-        pos_func = lambda i: self._evaluate(i) + OFFSET
-        neg_func = lambda i: -self._evaluate(i) + OFFSET * OFFSET
+    def _fitness(self, individual):
+        val = self._objective(individual)
 
-        if self._problem_type is MINIMIZE:
-            self._fitness = neg_func
-            self._cost = pos_func
+        if val >= 0:
+            return 10000 / (1 + val)
         else:
-            self._fitness = pos_func
-            self._cost = neg_func
+            return 10000 + abs(val)
+
+    def _cost(self, individual):
+        val = self._objective(individual)
+
+        if val >= 0:
+            return 10000 + val
+        else:
+            return 10000 / (1 + abs(val))
+
+    def _set_objective_function(self):
+        # the fitness and cost methods defined above are designed to minimize a
+        # function. If the problem is a maximization problem, it must be converted
+        # into a minimization problem. This is done by simply minimizing -f(x)
+        if self._problem_type is 'max':
+            self._objective = lambda individual: self._evaluate(individual) * -1
+        else:
+            self._objective = self._evaluate

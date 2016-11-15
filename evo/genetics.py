@@ -1,9 +1,9 @@
 import random
 
-from evo import EvolutionaryAlgorithm
+from evo import EvolutionaryAlgorithm as EA, Generation
 from tools import RandomSelector
 
-class BasicBinaryGA(EvolutionaryAlgorithm):
+class BasicBinaryGA(EA):
     """A basic binary genetic algorithm."""
 
     def __init__(
@@ -13,88 +13,72 @@ class BasicBinaryGA(EvolutionaryAlgorithm):
             num_elites=2,
             genelen=15):
 
-        EvolutionaryAlgorithm.__init__(self, population_size, mutation_probability, num_elites)
+        EA.__init__( self, population_size, mutation_probability, num_elites)
 
-        self.genelen = genelen
-        self.genotype_size = 2**genelen
+        self._genelen = genelen
+        self._genotype_size = 2**genelen
 
-    def evolve(self, max_generations):
+    def _init_algorithm(self):
         # genes represent a variable value; as genes have a length of genelen, we
         # can only represent 2^genelen values in the variable's domain, thus the
         # resolution indicates the difference between each of these values.
-        self.resolution = (float(self.domain.max - self.domain.min)
-                           / (self.genotype_size - 1))
+        self._resolution = (float(self._domain.max - self._domain.min)
+                           / (self._genotype_size - 1))
 
-        self.init_population()
+        self._init_population()
 
-        results = []
+    def _evolve(self):
         selector = RandomSelector()
 
-        for generation in range(max_generations):
-            self.sort_population()
+        selector.assign([(i, self._fitness(i)) for i in self._population])
 
-            fittest = self.get_fenotypes(self.population[0])
-            value = self.function(*fittest)
+        # preserve the best individuals
+        children = self._pick_elites()
 
-            results.append((fittest, value))
+        while len(children) < self._population_size:
+            # selection
+            parents = selector.sample(2)
 
-            # print generation best fit
-            print '{}: f{} = {}'.format(generation, fittest, value)
+            # individuals must be encoded to its binary representation as
+            # required by the crossover and mutation operators
+            encoded_parents = map(self._encode, parents)
 
-            # preserve the best individuals
-            children = self.population[:self.num_elites]
+            # crossover
+            decendents = self._crossover(*encoded_parents)
 
-            selector.assign([(i, self.fitness(i)) for i in self.population])
+            # mutation
+            decendents = map(self._mutate, decendents)
 
-            while len(children) < len(self.population):
-                # selection
-                parents = selector.sample(2)
+            children.extend(map(self._decode, decendents))
 
-                # individuals must be encoded to its binary representation as
-                # required by the crossover and mutation operators
-                encoded_parents = map(self.encode, parents)
+        self._population = children
 
-                # crossover
-                decendents = self.crossover(*encoded_parents)
+    def _rand_individual(self):
+        return [random.randrange(self._genotype_size)
+                for d in range(self._dimensions)]
 
-                # mutation
-                decendents = map(self.mutate, decendents)
+    def _best(self):
+        self._get_fenotypes(self._population[0])
 
-                children.extend(map(self.decode, decendents))
+    def _get_generation(self):
+        population = map(self._get_fenotypes, self._population)
 
-            self.population = children
+        best = population[0]
 
-        return results
+        return Generation(population, (best, self._function(*best)))
 
-    def random_inidividual(self):
-        x = random.randrange(self.genotype_size)
-        y = random.randrange(self.genotype_size)
+    def _evaluate(self, individual):
+        individual = self._get_fenotypes(individual)
 
-        return x, y
+        return self._function(*individual)
 
-    def evaluate(self, individual):
-        """Evaluate a solution in the objective function."""
+    def _fenotype(self, genotype):
+        return self._domain.min + genotype * self._resolution
 
-        individual = self.get_fenotypes(individual)
+    def _get_fenotypes(self, individual):
+        return map(self._fenotype, individual)
 
-        return self.function(*individual)
-
-    def fenotype(self, genotype):
-        """Maps a genotype to its corresponding fenotype."""
-
-        return self.domain.min + genotype * self.resolution
-
-
-    def get_fenotypes(self, individual):
-        """Maps the individual's genotypes into fenotypes."""
-
-        x, y = individual
-
-        return self.fenotype(x), self.fenotype(y)
-
-    def crossover(self, parent_a, parent_b):
-        """Combines two individuals into two new individuals."""
-
+    def _crossover(self, parent_a, parent_b):
         cross_point = random.randrange(1, len(parent_a))
 
         child_a = parent_a[:cross_point] + parent_b[cross_point:]
@@ -102,13 +86,11 @@ class BasicBinaryGA(EvolutionaryAlgorithm):
 
         return child_a, child_b
 
-    def mutate(self, individual):
-        """Flips each bit of individual with a probability of mutation_probability."""
-
+    def _mutate(self, individual):
         mutated = list(individual)
 
         for index, bit in enumerate(individual):
-            if random.random() < self.mutation_probability:
+            if random.random() < self._mutation_probability:
                 if bit is '1':
                     mutated[index] = '0'
                 else:
@@ -116,27 +98,22 @@ class BasicBinaryGA(EvolutionaryAlgorithm):
 
         return ''.join(mutated)
 
-    def encode(self, individual):
-        """Encodes the individual into a binary secuence."""
+    def _encode(self, individual):
+        return ''.join(map(self._gene_bits, individual))
 
-        x, y = individual
+    def _decode(self, chromosome):
+        individual = []
 
-        return self.gene_bits(x) + self.gene_bits(y)
+        while chromosome:
+            bits = chromosome[:self._genelen]
+            value = self._gene_value(bits)
+            individual.append(value)
+            chromosome = chromosome[self._genelen:]
 
-    def decode(self, chromosome):
-        """Decodes the binary secuence into a tuple of integer values."""
+        return individual
 
-        x = self.gene_value(chromosome[:self.genelen])
-        y = self.gene_value(chromosome[self.genelen:])
+    def _gene_bits(self, value):
+        return format(value, 'b').zfill(self._genelen)
 
-        return x, y
-
-    def gene_bits(self, value):
-        """Returns the binary representation of value."""
-
-        return format(value, 'b').zfill(self.genelen)
-
-    def gene_value(self, bits):
-        """Returns the integer value represented by the binary string."""
-
+    def _gene_value(self, bits):
         return int(bits, 2)

@@ -1,6 +1,6 @@
 import copy
 import random
-from evo import EvolutionaryAlgorithm as EA, MAXIMIZE, Generation
+from evo import EvolutionaryAlgorithm as EA, Generation
 from tools import RandomSelector
 
 class ForagerBee():
@@ -19,7 +19,6 @@ class ArtificialBeeColony(EA):
         self._onlookers_size = self._foragers_size
 
         self._foragers = []
-
 
     def _init_algorithm(self):
         self._stagnation_limit = self._population_size * self._dimensions / 2
@@ -82,7 +81,7 @@ class ArtificialBeeColony(EA):
         return ForagerBee(position)
 
     def _sort_population(self):
-        is_maximize = self._problem_type == MAXIMIZE
+        is_maximize = self._problem_type == 'max'
 
         self._foragers.sort(key=self._evaluate, reverse=is_maximize)
 
@@ -90,12 +89,12 @@ class ArtificialBeeColony(EA):
         return self._function(*bee.position)
 
     def _best(self):
-        return copy.copy(self._foragers[0].position)
+        return self._foragers[0].position
 
     def _get_generation(self):
         positions = [copy.copy(bee.position)
                      for bee in self._foragers]
 
-        best = positions[0], self._function(*positions[0])
+        best = positions[0]
 
-        return Generation(positions, best)
+        return Generation(positions, (best, self._function(*best)))
