@@ -7,6 +7,10 @@ from tools import Interval
 
 Generation = namedtuple('Generation', ['population', 'best'])
 
+class Individual:
+    def __init__(self, vector):
+        self.vector = vector
+
 # TODO: implement a _normalize abstract method and use it in evaluate, _get_generation
 # and _best, so subclases dont have to override these methods, but only implement
 # a the _normalize one.
